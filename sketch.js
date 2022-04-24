@@ -3,169 +3,126 @@ const World = Matter.World;
 const Bodies = Matter.Bodies;
 const Constraint = Matter.Constraint;
 
-var engine, world, backgroundImg;
-var canvas, angle, tower, ground, cannon;
-var balls = [];
-var boats = [];
-
-var score = 0;
-
-var brokenBoatAnimation=[];
-var brokenBoatSpriteData,brokenBoatSpriteSheet;
-var waterSplashAnimation=[];
-var waterSplashSpriteData,waterSplashSpriteSheet;
-var boatAnimation=[];
-var boatSpriteData,boatSpriteSheet;
+var engine, world;
+var canvas;
+var palyer, playerBase, playerArcher;
+var playerArrows = [];
+var board1, board2;
+var numberOfArrows = 10;
 
 function preload() {
-  backgroundImg = loadImage("./assets/background.gif");
-  towerImage = loadImage("./assets/tower.png");
-  boatSpriteData=loadJSON("./assets/boat/boat.json");
-  boatSpriteSheet=loadImage("./assets/boat/boat.png");
-  brokenBoatSpriteData=loadJSON("./assets/boat/brokenBoat.json");
-  brokenBoatSpriteSheet=loadImage("./assets/boat/brokenBoat.png");
-  waterSplashSpriteData=loadJSON("./assets/waterSplash/waterSplash.json");
-  waterSplashSpriteSheet=loadImage("./assets/waterSplash/waterSplash.png");
+  backgroundImg = loadImage("./assets/background.png");
 }
 
 function setup() {
-  canvas = createCanvas(1200, 600);
+  canvas = createCanvas(windowWidth, windowHeight);
+
   engine = Engine.create();
   world = engine.world;
-  angleMode(DEGREES)
-  angle = 15
 
+  playerBase = new PlayerBase(300, 500, 180, 150);
+  player = new Player(285, playerBase.body.position.y - 153, 50, 180);
+  playerArcher = new PlayerArcher(
+    340,
+    playerBase.body.position.y - 180,
+    120,
+    120
+  );
 
-  ground = Bodies.rectangle(0, height - 1, width * 2, 1, { isStatic: true });
-  World.add(world, ground);
-
-  tower = Bodies.rectangle(160, 350, 160, 310, { isStatic: true });
-  World.add(world, tower);
-
-  var boatFrames=boatSpriteData.frames;
-  for(var i=0; i<boatFrames.length; i++){
-    var pos=boatFrames[i].position;
-    var img=boatSpriteSheet.get(pos.x,pos.y,pos.w,pos.h);
-    boatAnimation.push(img);
-
-  }
-
-  var brokenBoatFrames=brokenBoatSpriteData.frames;
-  for(var i=0; i<boatFrames.length; i++){
-    var pos=brokenBoatFrames[i].position;
-    var img=brokenBoatSpriteSheet.get(pos.x,pos.y,pos.w,pos.h);
-    brokenBoatAnimation.push(img);
-    
-  }
-
-  var waterSplashFrames=waterSplashSpriteData.frames;
-  for(var i=0; i<waterSplashFrames.length; i++){
-    var pos=waterSplashFrames[i].position;
-    var img=waterSplashSpriteSheet.get(pos.x,pos.y,pos.w,pos.h);
-    waterSplashAnimation.push(img);
-    
-  }
-  cannon = new Cannon(180, 110, 130, 100, angle);
+  board1 = new Board(width - 300, 330, 50, 200);
+  board2 = new Board(width - 550, height - 300, 50, 200);
 }
 
 function draw() {
-  background(189);
-  image(backgroundImg, 0, 0, width, height);
+  background(backgroundImg);
 
   Engine.update(engine);
 
-  push();
-  translate(ground.position.x, ground.position.y);
-  fill("brown");
-  rectMode(CENTER);
-  rect(0, 0, width * 2, 1);
-  pop();
+  playerBase.display();
+  player.display();
+  playerArcher.display();
 
-  push();
-  translate(tower.position.x, tower.position.y);
-  rotate(tower.angle);
-  imageMode(CENTER);
-  image(towerImage, 0, 0, 160, 310);
-  pop();
+  board1.display();
+  board2.display();
 
-  showBoats();
+  for (var i = 0; i < playerArrows.length; i++) {
+    if (playerArrows[i] !== undefined) {
+      playerArrows[i].display();
 
-  for (var i = 0; i < balls.length; i++) {
-    showCannonBalls(balls[i], i);
-    collisionWithBoat(i);
-  }
+      var board1Collision = Matter.SAT.collides(
+        board1.body,
+        playerArrows[i].body
+      ); 
 
-  cannon.display();
+      /* var board1Collision = collides(
+        board1.body,
+        playerArrows[i].body
+      ); */
 
+      /*\ var board1Collision = SAT.collides(
+        board1.body,
+        playerArrows[i].body
+      ); */
 
-}
+      /* var board1Collision = Matter(
+        board1.body,
+        playerArrows[i].body
+      ); */
+      
+      var board2Collision = Matter.SAT.collides(
+        board2.body,
+        playerArrows[i].body
+      );
 
-function collisionWithBoat(index) {
-  for (var i = 0; i < boats.length; i++) {
-    if (balls[index] !== undefined && boats[i] !== undefined) {
-      var collision = Matter.SAT.collides(balls[index].body, boats[i].body);
+      if (board1Collision.collided || board2Collision.collided) {
+        console.log("Collided");
+      }
 
-      if (collision.collided) {
-        boats[i].remove(i);
+      var posX = playerArrows[i].body.position.x;
+      var posY = playerArrows[i].body.position.y;
 
-        Matter.World.remove(world, balls[index].body);
-        delete balls[index];
+      if (posX > width || posY > height) {
+        if (!playerArrows[i].isRemoved) {
+          playerArrows[i].remove(i);
+        }
       }
     }
   }
+
+  // Title
+  fill("#FFFF");
+  textAlign("center");
+  textSize(40);
+  text("EPIC ARCHERY", width / 2, 100);
+
+  // Arrow Count
+  fill("#FFFF");
+  textAlign("center");
+  textSize(30);
+  text("Remaining Arrows : " + numberOfArrows, 200, 100);
 }
 
 function keyPressed() {
-  if (keyCode === DOWN_ARROW) {
-    var cannonBall = new CannonBall(cannon.x, cannon.y);
-    cannonBall.trajectory = [];
-    Matter.Body.setAngle(cannonBall.body, cannon.angle);
-    balls.push(cannonBall);
-  }
-}
+  if (keyCode === 32) {
+    if (numberOfArrows > 0) {
+      var posX = playerArcher.body.position.x;
+      var posY = playerArcher.body.position.y;
+      var angle = playerArcher.body.angle;
 
-function showCannonBalls(ball, index) {
-  if (ball) {
-    ball.display();
-    if (ball.body.position.x >= width || ball.body.position.y >= height - 50) {
-      ball.remove(index);
+      var arrow = new PlayerArrow(posX, posY, 100, 10, angle);
+
+      Matter.Body.setAngle(arrow.body, angle);
+      playerArrows.push(arrow);
+      numberOfArrows -= 1;
     }
-  }
-}
-
-function showBoats() {
-  if (boats.length > 0) {
-    if (
-      boats[boats.length - 1] === undefined ||
-      boats[boats.length - 1].body.position.x < width - 300
-    ) {
-      var positions = [-40, -60, -70, -20];
-      var position = random(positions);
-      var boat = new Boat(width, height - 100, 170, 170, position);
-
-      boats.push(boat);
-    }
-
-    for (var i = 0; i < boats.length; i++) {
-      if (boats[i]) {
-        Matter.Body.setVelocity(boats[i].body, {
-          x: -0.9,
-          y: 0
-        });
-
-        boats[i].display();
-      } else {
-        boats[i];
-      }
-    }
-  } else {
-    var boat = new Boat(width, height - 60, 170, 170, -60);
-    boats.push(boat);
   }
 }
 
 function keyReleased() {
-  if (keyCode === DOWN_ARROW) {
-    balls[balls.length - 1].shoot();
+  if (keyCode === 32) {
+    if (playerArrows.length) {
+      var angle = playerArcher.body.angle;
+      playerArrows[playerArrows.length - 1].shoot(angle);
+    }
   }
 }
